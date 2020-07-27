@@ -43,3 +43,40 @@ def gaussian_clustering(K, X_pca, n_init=10, random_state=420):
 
     return y_gm
 
+
+def reconstruction_error(pca, X):
+    X_pca = pca.transform(X)
+    X_recon = pca.inverse_transform(X_pca)
+    mse = np.square(X_recon-X).mean(axis=-1)
+    return mse
+
+
+
+
+
+def pca_reconstruction_error(X_pca, y_pred):
+
+    clustered_data = {x:X_pca[y_pred == x] for x in set(y_pred)}
+    y_pred = pd.Series(y_pred)
+    labels = pd.DataFrame(y_pred, columns=['og'])
+
+
+    for key, item in clustered_data.items():
+        
+        cluster_pca = PCA(n_components=0.99).fit(item)
+        rec = reconstruction_error(cluster_pca, item)
+        threshold = np.std(rec) + rec.mean()
+        
+        cluster_labels = y_pred.copy()
+        
+        non_cluster = cluster_labels[cluster_labels != key]
+        inds = non_cluster[list(reconstruction_error(cluster_pca, X_pca[cluster_labels != key]) < threshold)].index
+        
+        cluster_labels.iloc[inds] = key
+        #print(f"{key} : {inds}")
+        print(f"replaced {len(inds)} instance(s) with {key}")
+        
+        labels[key] = cluster_labels
+
+
+    return labels
